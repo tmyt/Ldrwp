@@ -46,8 +46,7 @@ namespace Ldrwp.Models {
         /// </summary>
         /// <param name="SuccessAction">成功時</param>
         /// <param name="FailedAction">失敗時</param>
-        public void Login() {
-
+        public IObservable<string> Login() {
             _cookie = new CookieContainer();
             return CreateHttpWebRequestWithCookie(LoginUrl)
                .DownloadStringAsync()
@@ -82,8 +81,9 @@ namespace Ldrwp.Models {
                    var readerUri = "http://reader.livedoor.com/";
                    var req = CreateHttpWebRequestWithCookie(readerUri);
                    return req.GetResponseAsObservable();
-               }).Take(1)
-               .SelectMany((s) => {
+               })
+               .Take(1)
+               .Select((s) => {
                    var headers = s.Headers["Set-Cookie"].Split(';');
                    foreach (var h in headers) {
                        var hkv = h.Split('=');
@@ -93,36 +93,31 @@ namespace Ldrwp.Models {
                        }
                    }
                    SaveCookie();
-                   //return Observable.Take(1);
+                   // IObservable<T>で次以降に引き渡したいのがあればその値を返す
+                   // そうでないなら特になんでもない値を返しておくといいですよ
+                   return "";
                });
-               //.ObserveOnDispatcher()
-               //.Catch((WebException e) => {
-               //      //FailedAction();
-               //    return Observable.Empty<WebResponse>();
-               //})
-               //.Subscribe((s) => {
-               //      try {
-               //          var headers = s.Headers["Set-Cookie"].Split(';');
-               //          foreach (var h in headers) {
-               //              var hkv = h.Split('=');
-               //              if (hkv[0] == "reader_sid") {
-               //                  _readerSid = hkv[1];
-               //                  break;
-               //              }
-               //          }
-               //          SaveCookie();
-               //      } catch {
-               //      }
-               //});
-
         }
         #endregion 
         public void GetFeedTest(){
-            Login();
-            string param = "?unread=0&ApiKey="+_readerSid;
-            var c = CreateHttpWebRequestWithCookie(Path.Combine(ApiUrlBase, FeedListApi)+param);
-            c.DownloadStringAsync()
-                .Subscribe((s) => {
+            //Login();
+            //string param = "?unread=0&ApiKey="+_readerSid;
+            //var c = CreateHttpWebRequestWithCookie(Path.Combine(ApiUrlBase, FeedListApi)+param);
+            //c.DownloadStringAsync()
+            //    .Subscribe((s) => {
+            //        var test = s;
+            //    });
+            
+            // ここのメソッドをLogin含めてRxにするとすればこんな感じかなぁ
+            Login()
+                .Select(_ =>
+                {
+                    string param = "?unread=0&ApiKey=" + _readerSid;
+                    var c = CreateHttpWebRequestWithCookie(Path.Combine(ApiUrlBase, FeedListApi) + param);
+                    return c.DownloadStringAsync();
+                })
+                .Subscribe(s =>
+                {
                     var test = s;
                 });
         }
